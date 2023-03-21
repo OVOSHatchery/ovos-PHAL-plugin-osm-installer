@@ -1,18 +1,29 @@
 import datetime
 import os
+from os.path import dirname, join
 import time
 
 import validators
-from mycroft.skills.core import MycroftSkill, intent_file_handler
 from mycroft_bus_client.message import Message
 from ovos_skills_manager.github.utils import author_repo_from_github_url
 from ovos_skills_manager.osm import OVOSSkillsManager
+from ovos_plugin_manager.phal import PHALPlugin
+from ovos_utils.log import LOG
+from ovos_utils.events import EventSchedulerInterface
+from ovos_utils.gui import GUIInterface
 
 
-class OSMInstaller(MycroftSkill):
+class OSMInstallerPlugin(PHALPlugin):
 
-    def __init__(self):
-        super(OSMInstaller, self).__init__(name="OSMInstaller")
+    def __init__(self, bus=None, config=None):
+        """ Initialize the plugin
+            Args:
+                bus (MycroftBusClient): The Mycroft bus client
+                config (dict): The plugin configuration
+        """
+        name = "ovos-PHAL-plugin-osm-installer"
+        super().__init__(bus=bus, name=name, config=config)
+        self.gui = GUIInterface(bus=self.bus, skill_id=name)
         self.osm_manager = OVOSSkillsManager()
         self.osm_manager.enable_appstore("local")
         self.osm_manager.enable_appstore("ovos")
@@ -23,18 +34,22 @@ class OSMInstaller(MycroftSkill):
         self._store_update_in_progress = False
         self.default_icon = os.path.join(os.path.dirname(os.path.realpath(__file__)), 
                                          "ui/images/default-package.ico")
+        self.esi = EventSchedulerInterface(name=name,
+                                           bus=self.bus)
 
-    def initialize(self):
         self.osm_manager.bind(self.bus)
-
-        self.add_event("osm.installer.show.home",
+        self.bus.on("osm.installer.show.home",
                        self.handle_display_home)
-        self.add_event("osm.sync.finish",
+        self.bus.on("osm.sync.finish",
                        self.update_display_on_sync)
-        self.add_event("osm.store.enabled", self.update_stores_model)
-        self.add_event("osm.store.disabled", self.update_stores_model)
-        self.add_event("osm.install.finish", self.display_installer_success)
-        self.add_event("osm.install.error", self.display_installer_failure)
+        self.bus.on("osm.store.enabled",
+                    self.update_stores_model)
+        self.bus.on("osm.store.disabled",
+                    self.update_stores_model)
+        self.bus.on("osm.install.finish",
+                    self.display_installer_success)
+        self.bus.on("osm.install.error",
+                    self.display_installer_failure)
 
         # GUI Events
         self.gui.register_handler("osm.installer.dashboard.loaded",
@@ -56,12 +71,13 @@ class OSMInstaller(MycroftSkill):
 
         # Start A Scheduled Event for Syncing OSM data
         now = datetime.datetime.now()
-        self.schedule_repeating_event(self.sync_osm_model, now, 9000)
+        self.esi.schedule_repeating_event(
+            self.sync_osm_model, now, 9000, name="osm_installer_sync")
 
-    @intent_file_handler("show-osm.intent")
     def handle_display_home(self, message):
         self.build_stores_model()
-        self.gui.show_page("AppstoreHome.qml", override_idle=True)
+        page = join(dirname(__file__), "ui", "AppstoreHome.qml")
+        self.gui.show_page(page, override_idle=True)
 
     def handle_close(self, message):
         self.gui.release()
@@ -69,7 +85,6 @@ class OSMInstaller(MycroftSkill):
     def handle_dashboard_loaded(self, message):
         self.update_display_model()
 
-    @intent_file_handler("search-osm.intent")
     def handle_search_osm_intent(self, message):
         utterance = message.data.get("description", "")
         skills = []
@@ -226,6 +241,18 @@ class OSMInstaller(MycroftSkill):
         time.sleep(2)
         self.gui["installer_status"] = 0  # Idle / Unknown
 
-
-def create_skill():
-    return OSMInstaller()
+    def shutdown(self):
+        self.esi.cancel_scheduled_event("osm_installer_sync")
+        self.bus.remove("osm.installer.show.home",
+                        self.handle_display_home)
+        self.bus.remove("osm.sync.finish",
+                        self.update_display_on_sync)
+        self.bus.remove("osm.store.enabled",
+                        self.update_stores_model)
+        self.bus.remove("osm.store.disabled",
+                        self.update_stores_model)
+        self.bus.remove("osm.install.finish",
+                        self.display_installer_success)
+        self.bus.remove("osm.install.error",
+                        self.display_installer_failure)
+        super().shutdown()
