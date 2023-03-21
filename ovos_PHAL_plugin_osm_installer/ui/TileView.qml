@@ -12,7 +12,7 @@ ListView {
         right: parent.right
         top: header.baseline
         bottom: parent.bottom
-        topMargin: Kirigami.Units.largeSpacing*2
+        topMargin: Kirigami.Units.largeSpacing * 2
         leftMargin: -Kirigami.Units.largeSpacing
     }
     focus: true
@@ -29,7 +29,7 @@ ListView {
     implicitHeight: cellHeight
     rightMargin: width-cellWidth
     property int cellWidth: (Kirigami.Units.iconSizes.huge + Kirigami.Units.largeSpacing*4)
-    property int cellHeight: cellWidth + units.gridUnit * 3
+    property int cellHeight: cellWidth + Kirigami.Units.gridUnit * 3
     preferredHighlightBegin: 0
     preferredHighlightEnd: cellWidth
     displayMarginBeginning: cellWidth
@@ -42,9 +42,10 @@ ListView {
 
     //onMovementEnded: flickEnded()
     //onFlickEnded: tileViewType.currentIndex = indexAt(mapToItem(tileViewType.contentItem, tileViewType.cellWidth, 0).x, 0)
-    
+
     spacing: 0
-    orientation: ListView.Horizontal
+    property bool horizontalMode
+    orientation: horizontalMode ? ListView.Horizontal : ListView.Vertical
 
     move: Transition {
         SmoothedAnimation {
