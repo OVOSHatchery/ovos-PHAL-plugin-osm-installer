@@ -4,7 +4,7 @@ from os.path import dirname, join
 import time
 
 import validators
-from mycroft_bus_client.message import Message
+from ovos_bus_client.message import Message
 from ovos_skills_manager.github.utils import author_repo_from_github_url
 from ovos_skills_manager.osm import OVOSSkillsManager
 from ovos_plugin_manager.phal import PHALPlugin
