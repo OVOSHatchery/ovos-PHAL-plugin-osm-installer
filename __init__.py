@@ -8,10 +8,10 @@ from ovos_skills_manager.github.utils import author_repo_from_github_url
 from ovos_skills_manager.osm import OVOSSkillsManager
 
 
-class OSMInstaller(MycroftSkill):
+class OSMInstallerSkill(MycroftSkill):
 
     def __init__(self):
-        super(OSMInstaller, self).__init__(name="OSMInstaller")
+        super(OSMInstallerSkill, self).__init__(name="OSMInstaller")
         self.osm_manager = OVOSSkillsManager()
         self.osm_manager.enable_appstore("ovos")
         self.osm_manager.enable_appstore("pling")
@@ -116,4 +116,4 @@ class OSMInstaller(MycroftSkill):
 
 
 def create_skill():
-    return OSMInstaller()
+    return OSMInstallerSkill()
